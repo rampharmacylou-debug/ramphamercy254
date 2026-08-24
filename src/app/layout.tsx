@@ -1,18 +1,21 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { RoleProvider } from "@/lib/roleContext";
+import "@/app/globals.css";
 
-export const metadata: Metadata = {
-  title: "RAM",
-  description: "Operations record for products, diary, transport, and clients.",
+export const metadata = {
+  title: "Pharmacy Price Management",
+  description: "Internal pharmacy price tracking system",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        <RoleProvider>{children}</RoleProvider>
+    <html lang="en" className="dark">
+      <body className="min-h-screen bg-canvas text-ink antialiased">
+        {children}
       </body>
     </html>
   );
 }
+

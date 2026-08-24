@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  sku        String?
+  no         String?
+  product    String
+  packsize   String?
+  barcode    String?
+  unitPrice  Float?
+  price      Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Client {
+  id         String            @id @default(cuid())
+  clientName String
+  phone      String            @default("")
+  routeName  String            @default("")
+  riderPrice Int               @default(0)
+  phamPrice  Int               @default(0)
+  createdAt  DateTime          @default(now())
+  diary      DiaryEntry[]
+  trips      TransportRecord[]
+}
+
+model TransportRecord {
+  id         String   @id @default(cuid())
+  clientId   String?
+  clientName String
+  riderName  String   @default("")
+  routeName  String   @default("")
+  riderPrice Int      @default(0)
+  phamPrice  Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  client     Client?  @relation(fields: [clientId], references: [id])
+}
+
+model DiaryEntry {
+  id         String     @id @default(cuid())
+  clientId   String?
+  clientName String
+  date       String
+  itemsTaken String     @default("")
+  qty        Int        @default(0)
+  transport  Int        @default(0)
+  paidStatus PaidStatus @default(unpaid)
+  createdAt  DateTime   @default(now())
+  client     Client?    @relation(fields: [clientId], references: [id])
+}
+
+enum Role {
+  admin
+  staff
+}
+
+enum PaidStatus {
+  paid
+  partial
+  unpaid
+}

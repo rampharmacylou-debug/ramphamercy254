@@ -141,6 +141,32 @@ export default function StaffProductsPage() {
 
       {items.length === 0 ? (
         <EmptyState icon={Package} title="No products yet" description="Click 'Sync Sheet' above to pull products." />
+      ) : filtered.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-hairline bg-surface/60 px-4 py-10 text-center text-sm text-muted">
+          No products match your search or filter.
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-hairline bg-surface">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-muted">
+                <th className="px-4 py-3 font-medium">SKU</th>
+                <th className="px-4 py-3 font-medium">No</th>
+                <th className="px-4 py-3 font-medium">Product</th>
+                <th className="px-4 py-3 font-medium">Pack Size</th>
+                <th className="px-4 py-3 font-medium text-right">Unit Price</th>
+                <th className="px-4 py-3 font-medium text-right">Box Price</th>
+                <th className="px-4 py-3 font-medium">Barcode</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.slice(0, ROW_LIMIT).map((p) => (
+                <tr key={p.id} className="border-b border-hairline last:border-0 hover:bg-canvas/40">
+                  <td className="px-4 py-3"><RefTag>{p.sku || "—"}</RefTag></td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted">{p.no || "—"}</td>
+                  <td className="px-4 py-3 font-medium text-ink">{p.product || <span className="italic text-muted">Unnamed</span>}</td>
+                  <td className="px-4 py-3 text-muted">{p.pack_size || "—"}</td>
+                  <td className="px-4 py-3 text-right font-mono text-ink">
                     {p.unit_price ? `$${Number(p.unit_price).toFixed(2)}` : "—"}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-ink">
@@ -157,3 +183,5 @@ export default function StaffProductsPage() {
       )}
     </div>
   );
+}
+

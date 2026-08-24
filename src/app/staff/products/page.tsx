@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useDeferredValue, useMemo, useState, useEffect } from "react";
+import { Package, RefreshCw } from "lucide-react";
+import StatCard from "@/components/StatCard";
+import SearchFilterBar from "@/components/SearchFilterBar";
+import LastUpdated from "@/components/LastUpdated";
+import RefTag from "@/components/RefTag";
+import EmptyState from "@/components/EmptyState";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Product {
@@ -14,10 +20,25 @@ interface Product {
   barcode?: string | null;
 }
 
+const FILTER_OPTIONS = [
+  { value: "all", label: "All products" },
+  { value: "missing", label: "Missing barcode" },
+  { value: "has", label: "Has barcode" },
+];
+
 export default function StaffProductsPage() {
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | undefined>(undefined);
+
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+
+  const deferredSearch = useDeferredValue(search);
+  const deferredFilter = useDeferredValue(filter);
+
+  const ROW_LIMIT = 100;
 
   const loadPrices = async () => {
     setLoading(true);
@@ -31,6 +52,7 @@ export default function StaffProductsPage() {
         console.error("Supabase Error:", error.message);
       } else if (data) {
         setItems(data);
+        setLastUpdated(new Date());
       }
     } catch (err) {
       console.error("Failed to load products:", err);
@@ -39,79 +61,153 @@ export default function StaffProductsPage() {
     }
   };
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/sync", { method: "POST" });
+      if (res.ok) {
+        await loadPrices();
+      }
+    } catch (err) {
+      console.error("Sync error:", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
     loadPrices();
   }, []);
 
-  const filtered = items.filter((p) => {
-    const q = search.toLowerCase();
+  const filtered = useMemo(() => {
+    const q = deferredSearch.trim().toLowerCase();
+
+    return items.filter((p) => {
+      const productName = (p.product || "").toLowerCase();
+      const sku = (p.sku || "").toLowerCase();
+      const barcode = (p.barcode || "").toLowerCase();
+      const itemNo = String(p.no || "").toLowerCase();
+
+      const matchSearch =
+        !q ||
+        productName.includes(q) ||
+        sku.includes(q) ||
+        barcode.includes(q) ||
+        itemNo.includes(q);
+
+      const hasBarcode = Boolean(p.barcode && p.barcode.trim() !== "");
+
+      if (deferredFilter === "missing") return matchSearch && !hasBarcode;
+      if (deferredFilter === "has") return matchSearch && hasBarcode;
+      return matchSearch;
+    });
+  }, [items, deferredSearch, deferredFilter]);
+
+  if (loading) {
     return (
-      !q ||
-      (p.product || "").toLowerCase().includes(q) ||
-      (p.sku || "").toLowerCase().includes(q) ||
-      (p.barcode || "").toLowerCase().includes(q)
+      <div className="py-20 text-center text-sm text-muted">
+        Loading products from database…
+      </div>
     );
-  });
+  }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-hairline pb-5">
         <div>
-          <h1 className="text-2xl font-bold">Products</h1>
-          <p className="text-sm text-gray-500">Read-only product catalog</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
+            Products
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Current product list — read only.
+          </p>
         </div>
-        <button
-          onClick={loadPrices}
-          className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700"
-        >
-          Refresh Data
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`}
+            />
+            {syncing ? "Syncing..." : "Sync Sheet"}
+          </button>
+          <LastUpdated date={lastUpdated} onRefresh={loadPrices} />
+        </div>
       </div>
 
-      <div className="flex gap-4">
-        <input
-          type="text"
-          placeholder="Search product, SKU, or barcode..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-md px-3 py-2 border rounded-md text-sm"
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard label="Products tracked" value={String(items.length)} />
+        <StatCard label="Showing" value={String(filtered.length)} />
+      </div>
+
+      <SearchFilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by No, product, SKU, or barcode…"
+        filterValue={filter}
+        onFilterChange={setFilter}
+        filterOptions={FILTER_OPTIONS}
+      />
+
+      {items.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title="No products yet"
+          description="Click 'Sync Sheet' above to pull products."
         />
-      </div>
-
-      <div className="text-sm font-medium">
-        Total Products: {items.length} | Showing: {filtered.length}
-      </div>
-
-      {loading ? (
-        <div className="py-12 text-center text-gray-500">Loading database records...</div>
+      ) : filtered.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-hairline bg-surface/60 px-4 py-10 text-center text-sm text-muted">
+          No products match your search or filter.
+        </p>
       ) : (
-        <div className="overflow-x-auto border rounded-lg">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-100 border-b">
-              <tr>
-                <th className="p-3">SKU</th>
-                <th className="p-3">No</th>
-                <th className="p-3">Product</th>
-                <th className="p-3">Pack Size</th>
-                <th className="p-3 text-right">Unit Price</th>
-                <th className="p-3 text-right">Box Price</th>
-                <th className="p-3">Barcode</th>
+        <div className="overflow-x-auto rounded-lg border border-hairline bg-surface">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-muted">
+                <th className="px-4 py-3 font-medium">SKU</th>
+                <th className="px-4 py-3 font-medium">No</th>
+                <th className="px-4 py-3 font-medium">Product</th>
+                <th className="px-4 py-3 font-medium">Pack Size</th>
+                <th className="px-4 py-3 font-medium text-right">Unit Price</th>
+                <th className="px-4 py-3 font-medium text-right">Box Price</th>
+                <th className="px-4 py-3 font-medium">Barcode</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
-                <tr key={p.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3 font-mono">{p.sku || "—"}</td>
-                  <td className="p-3">{p.no || "—"}</td>
-                  <td className="p-3 font-medium">{p.product || "Unnamed"}</td>
-                  <td className="p-3">{p.pack_size || "—"}</td>
-                  <td className="p-3 text-right font-mono">
-                    {p.unit_price ? `$${Number(p.unit_price).toFixed(2)}` : "—"}
+              {filtered.slice(0, ROW_LIMIT).map((p) => (
+                <tr
+                  key={p.id}
+                  className="border-b border-hairline last:border-0 hover:bg-canvas/40"
+                >
+                  <td className="px-4 py-3">
+                    <RefTag>{p.sku || "—"}</RefTag>
                   </td>
-                  <td className="p-3 text-right font-mono">
+                  <td className="px-4 py-3 font-mono text-xs text-muted">
+                    {p.no || "—"}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-ink">
+                    {p.product || (
+                      <span className="italic text-muted">Unnamed</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-muted">
+                    {p.pack_size || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-ink">
+                    {p.unit_price
+                      ? `$${Number(p.unit_price).toFixed(2)}`
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-ink">
                     {p.box_price ? `$${Number(p.box_price).toFixed(2)}` : "—"}
                   </td>
-                  <td className="p-3 font-mono">{p.barcode || "missing"}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-ink">
+                    {p.barcode || (
+                      <span className="text-danger/70">missing</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

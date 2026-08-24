@@ -170,8 +170,12 @@ export default function StaffProductsPage() {
                 <th className="px-4 py-3 font-medium">No</th>
                 <th className="px-4 py-3 font-medium">Product</th>
                 <th className="px-4 py-3 font-medium">Pack Size</th>
-                <th className="px-4 py-3 font-medium text-right">Unit Price</th>
-                <th className="px-4 py-3 font-medium text-right">Box Price</th>
+                <th className="px-4 py-3 font-medium text-right">
+                  Unit Price
+                </th>
+                <th className="px-4 py-3 font-medium text-right">
+                  Box Price
+                </th>
                 <th className="px-4 py-3 font-medium">Barcode</th>
               </tr>
             </thead>

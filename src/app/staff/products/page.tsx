@@ -81,7 +81,7 @@ export default function StaffProductsPage() {
 
   const filtered = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
-    
+
     return items.filter((p) => {
       const productName = (p.product || "").toLowerCase();
       const sku = (p.sku || "").toLowerCase();
@@ -103,14 +103,24 @@ export default function StaffProductsPage() {
     });
   }, [items, deferredSearch, deferredFilter]);
 
-  if (loading) return <div className="py-20 text-center text-sm text-muted">Loading products from database…</div>;
+  if (loading) {
+    return (
+      <div className="py-20 text-center text-sm text-muted">
+        Loading products from database…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-hairline pb-5">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Products</h1>
-          <p className="mt-1 text-sm text-muted">Current product list — read only.</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
+            Products
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Current product list — read only.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -118,7 +128,9 @@ export default function StaffProductsPage() {
             disabled={syncing}
             className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`}
+            />
             {syncing ? "Syncing..." : "Sync Sheet"}
           </button>
           <LastUpdated date={lastUpdated} onRefresh={loadPrices} />
@@ -130,17 +142,21 @@ export default function StaffProductsPage() {
         <StatCard label="Showing" value={String(filtered.length)} />
       </div>
 
-      <SearchFilterBar 
-        searchValue={search} 
-        onSearchChange={setSearch} 
-        searchPlaceholder="Search by No, product, SKU, or barcode…" 
-        filterValue={filter} 
-        onFilterChange={setFilter} 
-        filterOptions={FILTER_OPTIONS} 
+      <SearchFilterBar
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by No, product, SKU, or barcode…"
+        filterValue={filter}
+        onFilterChange={setFilter}
+        filterOptions={FILTER_OPTIONS}
       />
 
       {items.length === 0 ? (
-        <EmptyState icon={Package} title="No products yet" description="Click 'Sync Sheet' above to pull products." />
+        <EmptyState
+          icon={Package}
+          title="No products yet"
+          description="Click 'Sync Sheet' above to pull products."
+        />
       ) : filtered.length === 0 ? (
         <p className="rounded-lg border border-dashed border-hairline bg-surface/60 px-4 py-10 text-center text-sm text-muted">
           No products match your search or filter.
@@ -161,19 +177,36 @@ export default function StaffProductsPage() {
             </thead>
             <tbody>
               {filtered.slice(0, ROW_LIMIT).map((p) => (
-                <tr key={p.id} className="border-b border-hairline last:border-0 hover:bg-canvas/40">
-                  <td className="px-4 py-3"><RefTag>{p.sku || "—"}</RefTag></td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted">{p.no || "—"}</td>
-                  <td className="px-4 py-3 font-medium text-ink">{p.product || <span className="italic text-muted">Unnamed</span>}</td>
-                  <td className="px-4 py-3 text-muted">{p.pack_size || "—"}</td>
+                <tr
+                  key={p.id}
+                  className="border-b border-hairline last:border-0 hover:bg-canvas/40"
+                >
+                  <td className="px-4 py-3">
+                    <RefTag>{p.sku || "—"}</RefTag>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted">
+                    {p.no || "—"}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-ink">
+                    {p.product || (
+                      <span className="italic text-muted">Unnamed</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-muted">
+                    {p.pack_size || "—"}
+                  </td>
                   <td className="px-4 py-3 text-right font-mono text-ink">
-                    {p.unit_price ? `$${Number(p.unit_price).toFixed(2)}` : "—"}
+                    {p.unit_price
+                      ? `$${Number(p.unit_price).toFixed(2)}`
+                      : "—"}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-ink">
                     {p.box_price ? `$${Number(p.box_price).toFixed(2)}` : "—"}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-ink">
-                    {p.barcode || <span className="text-danger/70">missing</span>}
+                    {p.barcode || (
+                      <span className="text-danger/70">missing</span>
+                    )}
                   </td>
                 </tr>
               ))}

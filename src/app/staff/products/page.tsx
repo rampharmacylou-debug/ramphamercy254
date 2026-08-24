@@ -38,22 +38,40 @@ export default function StaffProductsPage() {
   const deferredSearch = useDeferredValue(search);
   const deferredFilter = useDeferredValue(filter);
 
-  const ROW_LIMIT = 100;
-
+  // Fetch ALL rows in 1,000-row chunks to bypass Supabase defaults
   const loadPrices = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("pharmacy_prices")
-        .select("*")
-        .limit(1000);
+      let allData: Product[] = [];
+      let from = 0;
+      const step = 1000;
+      let keepFetching = true;
 
-      if (error) {
-        console.error("Supabase Error:", error.message);
-      } else if (data) {
-        setItems(data);
-        setLastUpdated(new Date());
+      while (keepFetching) {
+        const { data, error } = await supabase
+          .from("pharmacy_prices")
+          .select("*")
+          .range(from, from + step - 1);
+
+        if (error) {
+          console.error("Supabase Error:", error.message);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < step) {
+            keepFetching = false;
+          } else {
+            from += step;
+          }
+        } else {
+          keepFetching = false;
+        }
       }
+
+      setItems(allData);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to load products:", err);
     } finally {
@@ -106,7 +124,7 @@ export default function StaffProductsPage() {
   if (loading) {
     return (
       <div className="py-20 text-center text-sm text-muted">
-        Loading products from database…
+        Loading all products from database…
       </div>
     );
   }
@@ -180,7 +198,7 @@ export default function StaffProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, ROW_LIMIT).map((p) => (
+              {filtered.map((p) => (
                 <tr
                   key={p.id}
                   className="border-b border-hairline last:border-0 hover:bg-canvas/40"

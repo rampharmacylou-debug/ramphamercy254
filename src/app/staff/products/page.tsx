@@ -38,39 +38,40 @@ export default function StaffProductsPage() {
   const deferredSearch = useDeferredValue(search);
   const deferredFilter = useDeferredValue(filter);
 
-  // Fetch ALL rows in 1,000-row chunks to bypass Supabase defaults
+  // Fetch ALL rows past Supabase's 1000 limit
   const loadPrices = async () => {
     setLoading(true);
     try {
-      let allData: Product[] = [];
-      let from = 0;
-      const step = 1000;
-      let keepFetching = true;
+      let allRows: Product[] = [];
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      let hasMore = true;
 
-      while (keepFetching) {
+      while (hasMore) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
         const { data, error } = await supabase
           .from("pharmacy_prices")
           .select("*")
-          .range(from, from + step - 1);
+          .range(from, to);
 
         if (error) {
           console.error("Supabase Error:", error.message);
-          break;
-        }
-
-        if (data && data.length > 0) {
-          allData = [...allData, ...data];
-          if (data.length < step) {
-            keepFetching = false;
+          hasMore = false;
+        } else if (data) {
+          allRows = [...allRows, ...data];
+          if (data.length < PAGE_SIZE) {
+            hasMore = false;
           } else {
-            from += step;
+            page++;
           }
         } else {
-          keepFetching = false;
+          hasMore = false;
         }
       }
 
-      setItems(allData);
+      setItems(allRows);
       setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to load products:", err);
@@ -124,7 +125,7 @@ export default function StaffProductsPage() {
   if (loading) {
     return (
       <div className="py-20 text-center text-sm text-muted">
-        Loading all products from database…
+        Fetching complete catalog from database…
       </div>
     );
   }

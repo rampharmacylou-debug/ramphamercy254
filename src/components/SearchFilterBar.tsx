@@ -24,14 +24,11 @@ export default function SearchFilterBar({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Only sync from parent when it resets to "" (e.g. clear button)
+  // Show what the parent sets from outside (clear button, or a search chosen in the global search box).
+  // While typing, the box and the parent already match, so this does nothing and the cursor never jumps.
   useEffect(() => {
-    if (
-      searchValue === "" &&
-      inputRef.current &&
-      inputRef.current.value !== ""
-    ) {
-      inputRef.current.value = "";
+    if (inputRef.current && inputRef.current.value !== searchValue) {
+      inputRef.current.value = searchValue;
     }
   }, [searchValue]);
 

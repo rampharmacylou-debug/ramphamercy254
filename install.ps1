@@ -26,8 +26,8 @@ Write-Host ""
 
 $DbPassword    = Read-Host "Enter a password for the database user (or press Enter for auto-generated)"
 if (-not $DbPassword) { $DbPassword = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(18)).Replace("=","").Replace("+","").Replace("/","") }
-$AdminPassword = Read-Host "Enter the admin login password (default: manifest2024)"
-if (-not $AdminPassword) { $AdminPassword = "manifest2024" }
+$AdminPassword = Read-Host "Enter the admin password (required, 8+ characters)"
+while (-not $AdminPassword -or $AdminPassword.Length -lt 8) { $AdminPassword = Read-Host "Admin password must be at least 8 characters, try again" }
 $StaffPassword = Read-Host "Enter the staff login password (default: staff2024)"
 if (-not $StaffPassword) { $StaffPassword = "staff2024" }
 $SessionSecret = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
@@ -95,6 +95,7 @@ Write-Step "Writing .env..."
 @"
 DATABASE_URL="postgresql://${DbUser}:${DbPassword}@localhost:5432/${DbName}"
 SESSION_SECRET="${SessionSecret}"
+ADMIN_PASSWORD="${AdminPassword}"
 NODE_ENV="production"
 "@ | Set-Content "$AppDir\.env"
 Write-OK ".env written"
@@ -134,7 +135,7 @@ if ($existing) {
   & $nssmPath remove $SvcName confirm 2>&1 | Out-Null
 }
 & $nssmPath install $SvcName $nodePath
-& $nssmPath set $SvcName AppParameters "$AppDir\node_modules\.bin\next start -p $AppPort"
+& $nssmPath set $SvcName AppParameters "$AppDir\node_modules\next\dist\bin\next start -p $AppPort"
 & $nssmPath set $SvcName AppDirectory $AppDir
 & $nssmPath set $SvcName DisplayName "Manifest Inventory System"
 & $nssmPath set $SvcName Description "Manifest operations dashboard for products, diary, transport, and clients."
@@ -173,7 +174,7 @@ Write-Host ""
 Write-Host "  Server address (share this with office computers):" -ForegroundColor White
 Write-Host "    http://${LocalIP}:${AppPort}" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  Admin login:  admin / $AdminPassword" -ForegroundColor White
+Write-Host "  Admin password: (the one you entered; change it later in Settings)" -ForegroundColor White
 Write-Host "  Staff login:  staff / $StaffPassword" -ForegroundColor White
 Write-Host ""
 Write-Host "  ⚠  Change these passwords after first login!" -ForegroundColor Yellow

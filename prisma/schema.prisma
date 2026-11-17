@@ -5,14 +5,31 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
+// Staff accounts. Staff sign in with a username + password the admin creates (Settings > Staff sign-in).
+// `role` stays "staff" for these rows; the admin signs in with the admin password instead.
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
+  id           String    @id @default(cuid())
+  username     String    @unique
   passwordHash String
   role         Role
-  createdAt    DateTime @default(now())
+  name         String? // shown in the staff header, e.g. "Mary W."
+  active       Boolean   @default(true) // false = cannot sign in (account kept)
+  tokenVersion Int       @default(0) // bumped to sign this person out of every device at once
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime? // set after too many wrong passwords
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+// Singleton row (id is always "staff"): the staff sign-in switch and how long a staff session lasts.
+model StaffAccess {
+  id           String   @id @default("staff")
+  requireLogin Boolean  @default(true)
+  sessionHours Int      @default(12)
+  updatedAt    DateTime @updatedAt
 }
 
 model Product {
@@ -52,6 +69,16 @@ model TransportRecord {
   client     Client?  @relation(fields: [clientId], references: [id])
 }
 
+// What happens to the invoice for a diary entry.
+//   goes  = the invoice goes out with the client / delivery
+//   stays = the invoice stays at the pharmacy
+//   diary = the invoice is recorded in the physical diary book
+enum InvoiceAction {
+  goes
+  stays
+  diary
+}
+
 model DiaryEntry {
   id         String     @id @default(cuid())
   clientId   String?
@@ -61,8 +88,51 @@ model DiaryEntry {
   qty        Int        @default(0)
   transport  Int        @default(0)
   paidStatus PaidStatus @default(unpaid)
+  // Null on entries made before this field existed (shown as "Not set").
+  invoiceAction   InvoiceAction?
+  // 0 = no discount, otherwise a percentage from 0.01 to 100.
+  discountPercent Float         @default(0)
   createdAt  DateTime   @default(now())
   client     Client?    @relation(fields: [clientId], references: [id])
+}
+
+// Singleton row (id is always "backup") holding the backup switch and
+// destination choices — where a backup goes, and what it includes.
+model BackupSettings {
+  id                  String    @id @default("backup")
+  enabled             Boolean   @default(false) // daily scheduled run on/off
+  backupTime          String    @default("20:00") // 24h "HH:mm", read in `timezone` below
+  timezone            String    @default("Africa/Nairobi") // IANA zone the backup time is in (saved from the browser)
+  backupToGoogleDrive Boolean   @default(true)
+  backupToLocalFolder Boolean   @default(false)
+  localFolderPath     String? // e.g. C:\ManifestBackups — used when backupToLocalFolder is on
+  includeDatabaseDump Boolean   @default(false) // also run pg_dump into localFolderPath
+  lastRunAt           DateTime? // last run of ANY kind (manual or scheduled) — display only
+  lastScheduledRunAt  DateTime? // last run started by the daily timer — decides "already ran today"
+  lastCheckAt         DateTime? // last time the timer OR the external trigger checked the schedule
+  lastCheckSource     String? // "timer" | "external"
+  lastStatus          String? // "success" | "error"
+  lastError           String?
+  lastFileUrl         String? // Drive link, when backupToGoogleDrive produced one
+  lastLocalPath       String? // folder the last local backup was written to
+}
+
+// Singleton row (id is always "admin"): the admin password (scrypt hash).
+// When this row exists it takes priority over ADMIN_PASSWORD in .env.
+model AdminAuth {
+  id           String   @id @default("admin")
+  passwordHash String
+  updatedAt    DateTime @updatedAt
+}
+
+// Browsers/PCs an admin has marked as trusted — they skip the admin password.
+// Only a SHA-256 hash of each device's random token is stored.
+model TrustedDevice {
+  id         String    @id @default(cuid())
+  label      String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
 }
 
 enum Role {
@@ -74,4 +144,35 @@ enum PaidStatus {
   paid
   partial
   unpaid
+}
+
+// Singleton row (id is always "staff"): the names, visibility, order and
+// visible fields of the tabs in the Staff view. Edited in Settings.
+model StaffTabConfig {
+  id        String   @id @default("staff")
+  config    Json
+  updatedAt DateTime @updatedAt
+}
+
+// Singleton row (id is always "appearance"): app name, theme, brand color, fonts and which
+// stat cards are hidden. Edited in Settings > Appearance.
+// Singleton rows of admin-edited settings (JSON), same idea as StaffTabConfig/AppearanceConfig.
+// DiaryConfig: the wording and on/off switches of the diary (invoice section, discount, payment status, fields).
+model DiaryConfig {
+  id        String   @id @default("diary")
+  config    Json
+  updatedAt DateTime @updatedAt
+}
+
+// SearchDisplayConfig: which details the global search shows under each result.
+model SearchDisplayConfig {
+  id        String   @id @default("search")
+  config    Json
+  updatedAt DateTime @updatedAt
+}
+
+model AppearanceConfig {
+  id        String   @id @default("appearance")
+  config    Json
+  updatedAt DateTime @updatedAt
 }

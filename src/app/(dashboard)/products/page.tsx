@@ -8,12 +8,14 @@ import EmptyState from "@/components/EmptyState";
 import Drawer from "@/components/Drawer";
 import RefTag from "@/components/RefTag";
 import SearchFilterBar from "@/components/SearchFilterBar";
+import { usePrefillSearch } from "@/hooks/usePrefillSearch";
 import { TextField } from "@/components/fields";
 import { useApiCollection } from "@/hooks/useApiCollection";
 import LastUpdated from "@/components/LastUpdated";
 import { parseProductWorkbook } from "@/lib/productImport";
 import { useRole } from "@/lib/roleContext";
 import { Product } from "@/lib/types";
+import { calcPrice, calcUnitPrice } from "@/lib/pricing";
 
 const BARCODE_FILTER_OPTIONS = [
   { value: "all",     label: "All products" },
@@ -24,6 +26,17 @@ const BARCODE_FILTER_OPTIONS = [
 type Form = { sku: string; no: string; product: string; packsize: string; unitPrice: string; price: string; barcode: string };
 const BLANK: Form = { sku: "", no: "", product: "", packsize: "", unitPrice: "", price: "", barcode: "" };
 type Banner = { kind: "success" | "error"; message: string };
+
+// Two-way pricing: type the Unit Price and Price fills in (Pack Size × Unit Price),
+// or type the Price and Unit Price fills in (Price ÷ Pack Size). Whichever of the
+// two you typed LAST is treated as the one you set; changing the Pack Size then
+// recalculates the other one. Pack sizes that aren't plain numbers ("24x2") are
+// left alone so you can fill both by hand.
+type Driver = "unit" | "price";
+
+function fmtNum(n: number | null): string | null {
+  return n === null ? null : String(n);
+}
 
 export default function ProductsPage() {
   const { isAdmin } = useRole();
@@ -36,8 +49,10 @@ export default function ProductsPage() {
   const [banner, setBanner]   = useState<Banner | null>(null);
   const [drawerError, setDrawerError] = useState<string | null>(null);
   const [search, setSearch]   = useState("");
+  usePrefillSearch(setSearch);
   const [barcodeFilter, setBarcodeFilter] = useState("all");
   const [saving, setSaving]   = useState(false);
+  const [driver, setDriver]   = useState<Driver>("unit");
 
   // Defer the expensive filter so typing always feels instant
   const deferredSearch = useDeferredValue(search);
@@ -75,6 +90,7 @@ export default function ProductsPage() {
   function openCreate() {
     setEditId(null);
     setForm({ ...BLANK, no: String(items.length + 1) });
+    setDriver("unit");
     setDrawerError(null);
     setOpen(true);
   }
@@ -90,6 +106,8 @@ export default function ProductsPage() {
       price:     String(p.price     ?? ""),
       barcode:   String(p.barcode   ?? ""),
     });
+    // A product that has a price but no unit price starts out driven by its price.
+    setDriver(p.price && !p.unitPrice ? "price" : "unit");
     setDrawerError(null);
     setOpen(true);
   }
@@ -163,7 +181,21 @@ export default function ProductsPage() {
         totalUpdated ? `${totalUpdated} updated` : null,
         skippedEmptyRows ? `${skippedEmptyRows} blank rows skipped` : null,
       ].filter(Boolean);
-      setBanner({ kind: "success", message: `Import complete — ${parts.join(", ")}.` });
+
+      // Push the full, now-updated product list to Google Sheets, once,
+      // after the whole import (all chunks) has finished.
+      let sheetNote = "";
+      try {
+        const sheetRes = await fetch("/api/products/export-sheet", { method: "POST" });
+        const sheetData = await sheetRes.json().catch(() => ({}));
+        if (sheetData?.ok) sheetNote = " Synced to Google Sheets.";
+        else if (sheetData?.error) sheetNote = ` (Google Sheets export failed: ${sheetData.error})`;
+        // if skipped (not configured), say nothing — most users won't have set this up
+      } catch {
+        sheetNote = " (Could not reach Google Sheets export.)";
+      }
+
+      setBanner({ kind: "success", message: `Import complete — ${parts.join(", ")}.${sheetNote}` });
       await reload();
     } catch (err) {
       setBanner({ kind: "error", message: err instanceof Error ? err.message : "Could not read that file." });
@@ -217,13 +249,13 @@ export default function ProductsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Products tracked" value={String(items.length)} />
+        <StatCard id="products.tracked" label="Products tracked" value={String(items.length)} />
         <StatCard
-          label="Missing barcode"
+          id="products.missingBarcode" label="Missing barcode"
           value={String(items.filter((p) => !p.barcode?.trim()).length)}
           hint={items.filter((p) => !p.barcode?.trim()).length ? "Needs attention" : "All set"}
         />
-        <StatCard label="Showing" value={String(filtered.length)} />
+        <StatCard id="products.showing" label="Showing" value={String(filtered.length)} />
       </div>
 
       <SearchFilterBar
@@ -249,7 +281,7 @@ export default function ProductsPage() {
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-hairline bg-surface">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="stack-table w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-muted">
                 <th className="px-4 py-3 font-medium">No</th>
@@ -264,18 +296,18 @@ export default function ProductsPage() {
             <tbody>
               {filtered.slice(0, ROW_LIMIT).map((p) => (
                 <tr key={p.id} className="border-b border-hairline last:border-0 hover:bg-canvas/40">
-                  <td className="px-4 py-3 font-mono text-xs text-muted">{p.no || "—"}</td>
-                  <td className="px-4 py-3 font-medium text-ink">
+                  <td data-label="No" className="px-4 py-3 font-mono text-xs text-muted">{p.no || "—"}</td>
+                  <td data-label="Product" className="px-4 py-3 font-medium text-ink">
                     {p.product || <span className="italic text-muted">Unnamed</span>}
                   </td>
-                  <td className="px-4 py-3 text-muted">{p.packsize || "—"}</td>
-                  <td className="px-4 py-3 text-right font-mono text-ink">{p.unitPrice || "—"}</td>
-                  <td className="px-4 py-3 text-right font-mono text-ink">{p.price || "—"}</td>
-                  <td className="px-4 py-3">
+                  <td data-label="Pack Size" className="px-4 py-3 text-muted">{p.packsize || "—"}</td>
+                  <td data-label="Unit Price" className="px-4 py-3 text-right font-mono text-ink">{p.unitPrice || "—"}</td>
+                  <td data-label="Price" className="px-4 py-3 text-right font-mono text-ink">{p.price || "—"}</td>
+                  <td data-label="SKU" className="px-4 py-3">
                     <RefTag>{p.sku || "—"}</RefTag>
                   </td>
                   {isAdmin && (
-                    <td className="px-4 py-3 text-right">
+                    <td data-label="" className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1.5">
                         <button
                           onClick={() => openEdit(p)}
@@ -330,7 +362,14 @@ export default function ProductsPage() {
               <TextField
                 label="Pack Size"
                 value={form.packsize}
-                onChange={(e) => setForm({ ...form, packsize: e.target.value })}
+                onChange={(e) => {
+                  const packsize = e.target.value;
+                  setForm((f) =>
+                    driver === "price"
+                      ? { ...f, packsize, unitPrice: fmtNum(calcUnitPrice(packsize, f.price)) ?? f.unitPrice }
+                      : { ...f, packsize, price: fmtNum(calcPrice(packsize, f.unitPrice)) ?? f.price },
+                  );
+                }}
                 placeholder="e.g. 35"
               />
             </div>
@@ -338,16 +377,28 @@ export default function ProductsPage() {
               <TextField
                 label="Unit Price (KSh)"
                 value={form.unitPrice}
-                onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
+                onChange={(e) => {
+                  const unitPrice = e.target.value;
+                  setDriver("unit");
+                  setForm((f) => ({ ...f, unitPrice, price: fmtNum(calcPrice(f.packsize, unitPrice)) ?? f.price }));
+                }}
                 placeholder="e.g. 100"
               />
               <TextField
                 label="Price (KSh)"
                 value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                onChange={(e) => {
+                  const price = e.target.value;
+                  setDriver("price");
+                  setForm((f) => ({ ...f, price, unitPrice: fmtNum(calcUnitPrice(f.packsize, price)) ?? f.unitPrice }));
+                }}
                 placeholder="e.g. 3500"
               />
             </div>
+            <p className="-mt-2 text-xs text-muted">
+              Type either the Unit Price or the Price — the other fills in automatically using the Pack Size
+              (Price = Pack Size × Unit Price), rounded to a whole number. This only works when the Pack Size is a plain number.
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <TextField
                 label="SKU"

@@ -1,4 +1,5 @@
 import { DiaryEntry, PaidStatus, TransportRecord } from "./types";
+import { isInvoiceAction } from "./diaryFields";
 
 const VALID_PAID_STATUSES: PaidStatus[] = ["paid", "partial", "unpaid"];
 
@@ -14,6 +15,8 @@ export function normalizeDiaryEntry(e: Partial<DiaryEntry> & { id: string }): Di
     paidStatus: VALID_PAID_STATUSES.includes(e.paidStatus as PaidStatus)
       ? (e.paidStatus as PaidStatus)
       : "unpaid",
+    invoiceAction: isInvoiceAction(e.invoiceAction) ? e.invoiceAction : null,
+    discountPercent: Number(e.discountPercent) > 0 ? Number(e.discountPercent) : 0,
   };
 }
 

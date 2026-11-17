@@ -2,45 +2,43 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, NotebookPen, Truck, Users, Eye } from "lucide-react";
-
-const NAV = [
-  { href: "/products",  label: "Products",  icon: Package },
-  { href: "/diary",     label: "Diary",     icon: NotebookPen },
-  { href: "/clients",   label: "Clients",   icon: Users },
-  { href: "/transport", label: "Transport", icon: Truck },
-] as const;
+import { Eye } from "lucide-react";
+import DynamicIcon from "@/components/DynamicIcon";
+import { NAV_ITEMS } from "@/lib/appearance";
+import { useAppearance } from "@/lib/appearanceContext";
 
 type Props = { onNavigate?: () => void };
 
 export default function Sidebar({ onNavigate }: Props) {
   const pathname = usePathname();
+  const { appName, nav } = useAppearance();
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col bg-ink text-surface">
+    <aside className="flex h-full w-64 max-w-[85vw] shrink-0 flex-col overflow-y-auto bg-ink text-surface md:w-60">
       <div className="px-6 py-7">
         <p className="font-display text-[1.05rem] font-bold tracking-tight text-surface">
-         Ram
+          {appName}
         </p>
         <p className="mt-1 text-xs text-surface/55">Admin dashboard</p>
       </div>
 
       <nav className="flex-1 px-3">
         <ul className="space-y-1">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV_ITEMS.map(({ key, href }) => {
+            const { label, icon } = nav[key];
             const active = pathname?.startsWith(href);
             return (
               <li key={href}>
                 <Link
                   href={href}
                   onClick={onNavigate}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
+                  className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm transition-colors md:py-2.5 ${
                     active
                       ? "pennant bg-white/10 font-medium text-surface"
                       : "text-surface/65 hover:bg-white/5 hover:text-surface"
                   }`}
                 >
-                  <Icon size={17} strokeWidth={2} />
+                  <DynamicIcon name={icon} />
                   {label}
                 </Link>
               </li>

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
 
 type Params = { params: Promise<{ id: string }> };
 
+// Full client file (details + every trip + every diary entry): admin only. Staff only ever get the
+// filtered lists from /api/clients, /api/diary and /api/transport.
 export async function GET(_req: NextRequest, { params }: Params) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { id } = await params;
   const client = await prisma.client.findUnique({ where: { id } });
   if (!client) return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -20,6 +25,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
   try {
@@ -40,6 +47,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { id } = await params;
   try {
     await prisma.client.delete({ where: { id } });

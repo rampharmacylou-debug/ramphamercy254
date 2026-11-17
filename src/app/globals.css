@@ -12,6 +12,33 @@
   --hairline: #d6d9cd;
   --danger: #a8453b;
   --success: #4f7a5b;
+
+  /* Main color, set from Settings > Appearance (see app/layout.tsx) */
+  --brand: #0b7a62;
+
+  --f-display: ui-sans-serif, "Helvetica Neue", Arial, sans-serif;
+  --f-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* "Store" theme: the same look as the pharmacy store website.
+   Every color is worked out from the one --brand color, exactly like the store does. */
+[data-theme="store"] {
+  --canvas: color-mix(in srgb, var(--brand) 5%, white);
+  --surface: #ffffff;
+  --ink: #12211d;
+  --ink-soft: color-mix(in srgb, var(--brand) 25%, #12211d);
+  --text: #12211d;
+  --muted: #5b6b66;
+  --accent: var(--brand);
+  --accent-soft: color-mix(in srgb, var(--brand) 40%, white);
+  --hairline: color-mix(in srgb, var(--brand) 16%, white);
+  --success: var(--brand);
+}
+
+/* The store's fonts: Bricolage Grotesque for headings, Figtree for text */
+[data-font="store"] {
+  --f-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --f-body: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
@@ -26,9 +53,8 @@
   --color-hairline: var(--hairline);
   --color-danger: var(--danger);
   --color-success: var(--success);
-  --font-display: ui-sans-serif, "Helvetica Neue", Arial, sans-serif;
-  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    sans-serif;
+  --font-display: var(--f-display);
+  --font-body: var(--f-body);
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono",
     monospace;
 }
@@ -36,7 +62,7 @@
 body {
   background: var(--canvas);
   color: var(--text);
-  font-family: var(--font-body);
+  font-family: var(--f-body);
 }
 
 /* Display role leans on weight + tight tracking rather than a distinct
@@ -71,8 +97,93 @@ body {
   background-size: 10px 10px;
 }
 
+/* On the dark sidebar the brand color needs to be lighter to stay visible */
+[data-theme="store"] .pennant::before {
+  background: color-mix(in srgb, var(--brand) 55%, white);
+}
+
 @media print {
   body {
     background: white;
+  }
+}
+
+/* ── Phones and tablets ─────────────────────────────────────────────────────── */
+
+/* Tables turn into one card per row on phones: each cell shows its column name (data-label). */
+@media (max-width: 639px) {
+  .stack-table {
+    min-width: 0;
+  }
+  .stack-table,
+  .stack-table tbody,
+  .stack-table tr,
+  .stack-table td {
+    display: block;
+    width: 100%;
+  }
+  .stack-table thead {
+    display: none;
+  }
+  .stack-table tr {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .stack-table tr:last-child {
+    border-bottom: 0;
+  }
+  .stack-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    text-align: right;
+  }
+  .stack-table td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    text-align: left;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .stack-table td[data-label=""]::before {
+    display: none;
+  }
+  /* the action buttons get their own row */
+  .stack-table td[data-label=""] {
+    justify-content: flex-end;
+    padding-top: 0.5rem;
+  }
+}
+
+/* Typing in a box must not zoom the page on iPhones (they zoom when the text is under 16px). */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Easier to tap on touch screens */
+@media (pointer: coarse) {
+  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+    min-height: 44px;
+  }
+}
+
+/* Smooth scrolling that respects people who turn animations off */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

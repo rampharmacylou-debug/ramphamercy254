@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-
-export default function Home() {
-  redirect('/staff/products');
+import { redirect } from "next/navigation";
+export default function RootPage() {
+  redirect("/staff/products");
 }

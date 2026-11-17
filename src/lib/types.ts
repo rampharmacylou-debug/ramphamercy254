@@ -12,6 +12,8 @@ export type Product = {
 
 export type PaidStatus = "paid" | "partial" | "unpaid";
 
+export type InvoiceAction = "goes" | "stays" | "diary";
+
 export type DiaryEntry = {
   id: string;
   clientId?: string;
@@ -21,6 +23,10 @@ export type DiaryEntry = {
   qty: number;
   transport: number;
   paidStatus: PaidStatus;
+  /** null/undefined on entries created before this field existed */
+  invoiceAction?: InvoiceAction | null;
+  /** 0 = no discount */
+  discountPercent?: number;
 };
 
 export type TransportRecord = {

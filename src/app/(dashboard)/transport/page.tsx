@@ -9,6 +9,7 @@ import EmptyState from "@/components/EmptyState";
 import Drawer from "@/components/Drawer";
 import RefTag from "@/components/RefTag";
 import SearchFilterBar from "@/components/SearchFilterBar";
+import { usePrefillSearch } from "@/hooks/usePrefillSearch";
 import { TextField, SelectField } from "@/components/fields";
 import { useApiCollection } from "@/hooks/useApiCollection";
 import { useRole } from "@/lib/roleContext";
@@ -27,6 +28,7 @@ export default function TransportPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Form>(BLANK);
   const [search, setSearch] = useState("");
+  usePrefillSearch(setSearch);
   const [clientFilter, setClientFilter] = useState("all");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,10 +93,10 @@ export default function TransportPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Trips logged" value={String(trips.length)} />
-        <StatCard label="Rider total" value={fmtKsh(riderTotal)} />
-        <StatCard label="Pham total" value={fmtKsh(phamTotal)} />
-        <StatCard label="Combined" value={fmtKsh(riderTotal + phamTotal)} />
+        <StatCard id="transport.trips" label="Trips logged" value={String(trips.length)} />
+        <StatCard id="transport.rider" label="Rider total" value={fmtKsh(riderTotal)} />
+        <StatCard id="transport.pham" label="Pham total" value={fmtKsh(phamTotal)} />
+        <StatCard id="transport.combined" label="Combined" value={fmtKsh(riderTotal + phamTotal)} />
       </div>
 
       <SearchFilterBar searchValue={search} onSearchChange={setSearch} searchPlaceholder="Search by client, route, or rider…" filterValue={clientFilter} onFilterChange={setClientFilter} filterOptions={clientFilterOpts} />
@@ -105,7 +107,7 @@ export default function TransportPage() {
         <p className="rounded-lg border border-dashed border-hairline bg-surface/60 px-4 py-10 text-center text-sm text-muted">No trips match your search or filter.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-hairline bg-surface">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="stack-table w-full min-w-[720px] text-sm">
             <thead><tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-muted">
               <th className="px-4 py-3 font-medium">Ref</th><th className="px-4 py-3 font-medium">Rider</th>
               <th className="px-4 py-3 font-medium">Client</th><th className="px-4 py-3 font-medium">Route</th>
@@ -117,16 +119,16 @@ export default function TransportPage() {
                 const idx = sorted.findIndex((x) => x.id === t.id);
                 return (
                   <tr key={t.id} className="border-b border-hairline last:border-0 hover:bg-canvas/40">
-                    <td className="px-4 py-3"><RefTag>TRN-{String(sorted.length - idx).padStart(3, "0")}</RefTag></td>
-                    <td className="px-4 py-3 text-ink">{t.riderName || <span className="italic text-muted">Unassigned</span>}</td>
-                    <td className="px-4 py-3 font-medium text-ink">
+                    <td data-label="Ref" className="px-4 py-3"><RefTag>TRN-{String(sorted.length - idx).padStart(3, "0")}</RefTag></td>
+                    <td data-label="Rider" className="px-4 py-3 text-ink">{t.riderName || <span className="italic text-muted">Unassigned</span>}</td>
+                    <td data-label="Client" className="px-4 py-3 font-medium text-ink">
                       {t.clientId ? <Link href={`/clients/${t.clientId}`} className="hover:underline">{t.clientName}</Link> : t.clientName}
                     </td>
-                    <td className="px-4 py-3 text-muted">{t.routeName}</td>
-                    <td className="px-4 py-3 text-right font-mono text-ink">{fmtKsh(t.riderPrice)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-ink">{fmtKsh(t.phamPrice)}</td>
+                    <td data-label="Route" className="px-4 py-3 text-muted">{t.routeName}</td>
+                    <td data-label="Rider price" className="px-4 py-3 text-right font-mono text-ink">{fmtKsh(t.riderPrice)}</td>
+                    <td data-label="Pham price" className="px-4 py-3 text-right font-mono text-ink">{fmtKsh(t.phamPrice)}</td>
                     {isAdmin && (
-                      <td className="px-4 py-3 text-right">
+                      <td data-label="" className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-1.5">
                           <button onClick={() => openEdit(t)} className="rounded-md p-1.5 text-muted hover:bg-ink/5 hover:text-ink"><Pencil size={15} /></button>
                           <button onClick={() => handleDelete(t.id)} className="rounded-md p-1.5 text-muted hover:bg-danger/10 hover:text-danger"><Trash2 size={15} /></button>

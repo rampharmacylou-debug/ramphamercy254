@@ -4,7 +4,7 @@
 
 - **Node.js** 20+ (installer handles this)
 - **PostgreSQL** 15+ (installer handles this)
-- A **.env** file with `DATABASE_URL` and `SESSION_SECRET`
+- A **.env** file with `DATABASE_URL`, `SESSION_SECRET` and `ADMIN_PASSWORD`
 
 ---
 
@@ -119,3 +119,39 @@ Restore:
 ```bash
 psql -U manifest_app manifest < backup.sql
 ```
+
+### Scheduled Excel backup to Google Drive
+
+Under **Settings** in the app, an admin can turn on a daily backup and choose
+where it goes:
+- **Google Drive** — reuses the same service account as the Google Sheets
+  export; see `GOOGLE_DRIVE_FOLDER_ID` in `.env.example` for setup.
+- **A folder on this PC** — written straight to a local folder you type in
+  (e.g. `C:\ManifestBackups`). Useful since scheduled backups run with no
+  browser open, so there's nothing to click "download" on.
+- **Full database backup** — an extra checkbox, only available alongside the
+  local-folder option, that also runs `pg_dump` and saves a complete `.sql`
+  dump of every table (not just Products/Clients) next to the Excel file.
+
+Both destinations can be on at the same time, or just one. There's also a
+"Download Excel now" button that skips all of that and downloads the file
+straight to your browser on demand.
+
+The app needs to be running at the scheduled time for the daily backup to
+fire (it is, since it runs as a Windows Service).
+
+
+## Admin password and trusted machines
+
+- The **Admin** area (Products, Diary, Clients, Transport, Settings) asks for the
+  admin password. The **Staff** view (`/staff/...`) is open and read-only.
+- First password = `ADMIN_PASSWORD` in `.env`. Change it any time under
+  **Settings -> Admin security**; the changed password is stored (hashed) in the
+  database and takes priority over `.env`.
+- Forgot it? Run `DELETE FROM "AdminAuth";` in pgAdmin, then sign in with the
+  `ADMIN_PASSWORD` from `.env`.
+- **Trusted machines:** on the PC that should skip the password, sign in once and
+  press **Trust this machine** (Settings -> Admin security). Remove it from the
+  same list to revoke.
+- After pulling this update run `npm run db:migrate` (applies
+  `20261004100000_add_admin_auth_and_scheduler_fix`), then rebuild and restart.

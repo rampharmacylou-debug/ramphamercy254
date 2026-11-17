@@ -13,12 +13,27 @@ export type ApiCollectionState<T> = {
   reload: () => Promise<void>;
 };
 
+// The last answer for each address, kept in memory while the tab stays open. Going back to a page shows
+// it instantly while fresh data loads in the background. A full page reload (or signing out) starts empty.
+const memory = new Map<string, unknown[]>();
+
+// A 401 means the sign-in has ended (or was never done): send the person to the right sign-in tab
+// instead of showing a confusing error.
+function handleUnauthorized(res: Response) {
+  if (res.status === 401 && typeof window !== "undefined") {
+    memory.clear();
+    const staff = window.location.pathname.startsWith("/staff");
+    window.location.assign(staff ? "/login?as=staff" : "/login?as=admin");
+    throw new Error("Please sign in.");
+  }
+}
+
 export function useApiCollection<T extends { id: string }>(
   endpoint: string,
   dataKey: string,
 ): ApiCollectionState<T> {
-  const [items, setItems] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<T[]>(() => (memory.get(endpoint) as T[] | undefined) ?? []);
+  const [loading, setLoading] = useState(() => !memory.has(endpoint));
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -30,13 +45,16 @@ export function useApiCollection<T extends { id: string }>(
         cache: "no-store",
       });
 
+      handleUnauthorized(res);
       if (!res.ok) {
         throw new Error(`Server error ${res.status}`);
       }
 
       const data = await res.json();
+      const rows: T[] = data[dataKey] ?? [];
 
-      setItems(data[dataKey] ?? []);
+      memory.set(endpoint, rows);
+      setItems(rows);
       setLastUpdated(new Date());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load data.");
@@ -59,6 +77,7 @@ export function useApiCollection<T extends { id: string }>(
         body: JSON.stringify(payload),
       });
 
+      handleUnauthorized(res);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `Failed to create (${res.status})`);
@@ -79,6 +98,7 @@ export function useApiCollection<T extends { id: string }>(
         body: JSON.stringify(payload),
       });
 
+      handleUnauthorized(res);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `Failed to update (${res.status})`);
@@ -95,6 +115,7 @@ export function useApiCollection<T extends { id: string }>(
         method: "DELETE",
       });
 
+      handleUnauthorized(res);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `Failed to delete (${res.status})`);

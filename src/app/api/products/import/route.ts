@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/adminAuth";
+import { fillMissingPrice } from "@/lib/pricing";
 
 // Increase body size limit for this route
 export const maxDuration = 60;
@@ -17,22 +19,28 @@ type ProductRow = {
 function sanitise(row: Record<string, unknown>): ProductRow {
   const s = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const n = (v: unknown) => {
+    // Blank cells are "no value" (not 0), so the missing price / unit price can be worked out.
+    if (v === null || v === undefined || (typeof v === "string" && v.trim() === "")) return null;
     const num = Number(v);
     return Number.isFinite(num) ? num : null;
   };
 
+  const packsize = s(row.packsize);
+  const prices = fillMissingPrice({ packsize, unitPrice: n(row.unitPrice), price: n(row.price) });
   return {
     sku: s(row.sku),
     no: s(row.no),
     product: s(row.product),
-    packsize: s(row.packsize),
+    packsize,
     barcode: s(row.barcode),
-    unitPrice: n(row.unitPrice),
-    price: n(row.price),
+    unitPrice: prices.unitPrice,
+    price: prices.price,
   };
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const body = await req.json();
     const rows: ProductRow[] = Array.isArray(body?.rows)

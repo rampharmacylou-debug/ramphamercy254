@@ -7,6 +7,7 @@ import StatCard from "@/components/StatCard";
 import RefTag from "@/components/RefTag";
 import PaidBadge from "@/components/PaidBadge";
 import { SavedClient, TransportRecord, DiaryEntry } from "@/lib/types";
+import DiaryTags from "@/components/DiaryTags";
 
 function fmtKsh(n: number) { return `KSh ${n.toLocaleString("en-KE")}`; }
 function fmtDate(iso: string) { return new Date(iso + "T00:00:00").toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }); }
@@ -59,10 +60,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Default rider price" value={fmtKsh(client.riderPrice)} />
-        <StatCard label="Default pham price" value={fmtKsh(client.phamPrice)} />
-        <StatCard label="Trips logged" value={String(trips.length)} />
-        <StatCard label="Outstanding" value={String(outstanding)} hint={`of ${diary.length} diary entries`} />
+        <StatCard id="clientDetail.riderPrice" label="Default rider price" value={fmtKsh(client.riderPrice)} />
+        <StatCard id="clientDetail.phamPrice" label="Default pham price" value={fmtKsh(client.phamPrice)} />
+        <StatCard id="clientDetail.trips" label="Trips logged" value={String(trips.length)} />
+        <StatCard id="clientDetail.outstanding" label="Outstanding" value={String(outstanding)} hint={`of ${diary.length} diary entries`} />
       </div>
 
       <div className="space-y-4">
@@ -71,7 +72,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           <p className="rounded-lg border border-dashed border-hairline bg-surface/60 px-4 py-8 text-center text-sm text-muted">No trips logged for this client yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-hairline bg-surface">
-            <table className="w-full min-w-[480px] text-sm">
+            <table className="stack-table w-full min-w-[480px] text-sm">
               <thead><tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-muted">
                 <th className="px-4 py-3 font-medium">Rider</th><th className="px-4 py-3 font-medium">Route</th>
                 <th className="px-4 py-3 font-medium text-right">Rider price</th><th className="px-4 py-3 font-medium text-right">Pham price</th>
@@ -79,10 +80,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               <tbody>
                 {trips.map((t) => (
                   <tr key={t.id} className="border-b border-hairline last:border-0">
-                    <td className="px-4 py-3 text-ink">{t.riderName || <span className="italic text-muted">Unassigned</span>}</td>
-                    <td className="px-4 py-3 text-muted">{t.routeName}</td>
-                    <td className="px-4 py-3 text-right font-mono text-ink">{fmtKsh(t.riderPrice)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-ink">{fmtKsh(t.phamPrice)}</td>
+                    <td data-label="Rider" className="px-4 py-3 text-ink">{t.riderName || <span className="italic text-muted">Unassigned</span>}</td>
+                    <td data-label="Route" className="px-4 py-3 text-muted">{t.routeName}</td>
+                    <td data-label="Rider price" className="px-4 py-3 text-right font-mono text-ink">{fmtKsh(t.riderPrice)}</td>
+                    <td data-label="Pham price" className="px-4 py-3 text-right font-mono text-ink">{fmtKsh(t.phamPrice)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -111,6 +112,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                       <p className="text-sm text-text/80">{e.itemsTaken} · Qty {e.qty}</p>
                       <PaidBadge status={e.paidStatus} />
                     </div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2"><DiaryTags invoiceAction={e.invoiceAction} discountPercent={e.discountPercent} /></div>
                     {e.transport ? <p className="mt-1 text-xs text-muted">Transport {fmtKsh(e.transport)}</p> : null}
                   </div>
                 </div>
